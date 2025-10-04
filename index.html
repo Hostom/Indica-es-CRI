@@ -78,9 +78,9 @@
             };
 
             // ⚠️ ATENÇÃO: Endereço do nosso Backend (server.js)
-            const urlBackend = 'https://curly-lamp-wrxj7p96rj6629xj-3000.app.github.dev/api/indicacoes';
+             const urlBackend = '/api/indicacoes'; // <-- MUDANÇA AQUI!
 
-            fetch(urlBackend, {
+            fetch(urlBackend, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
