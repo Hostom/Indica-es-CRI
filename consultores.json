@@ -1,0 +1,65 @@
+[
+    { 
+        "id": 1, 
+        "nome": "Israel Fogaça", 
+        "email": "isreal@adimimoveis.com.br",
+        "natureza": "Locacao", 
+        "cidade": "Balneario Camboriu", 
+        "ativo_na_roleta": true, 
+        "data_ultima_indicacao": "2025-10-01T10:00:00Z" 
+    },
+    { 
+        "id": 2, 
+        "nome": "Matheus Giacomini",
+        "email": "matheus@adimimoveis.com.br", 
+        "natureza": "Locacao", 
+        "cidade": "Balneario Camboriu", 
+        "ativo_na_roleta": true, 
+        "data_ultima_indicacao": "2025-10-01T11:00:00Z" 
+    },
+    { 
+        "id": 3, 
+        "nome": "Bruna Kleis", 
+        "email": "brunakleis@adimimoveis.com.br",
+        "natureza": "Locacao", 
+        "cidade": "Balneario Camboriu", 
+        "ativo_na_roleta": true, 
+        "data_ultima_indicacao": "2025-09-30T10:00:00Z" 
+    },
+    { 
+        "id": 4, 
+        "nome": "Stephanie Maron",
+        "email": "stephanie@adimimoveis.com.br", 
+        "natureza": "Locacao", 
+        "cidade": "Balneario Camboriu", 
+        "ativo_na_roleta": true, 
+        "data_ultima_indicacao": "2025-09-30T10:00:00Z" 
+    },
+    { 
+        "id": 5, 
+        "nome": "Kerolin Valles",
+        "email": "kerolin@adimimoveis.com.br", 
+        "natureza": "Locacao", 
+        "cidade": "Balneario Camboriu", 
+        "ativo_na_roleta": true, 
+        "data_ultima_indicacao": "2025-09-30T10:00:00Z" 
+    },
+    { 
+        "id": 6, 
+        "nome": "Michele Oliveira", 
+        "email": "mihclee@adimimoveis.com.br",
+        "natureza": "Captacao", 
+        "cidade": "Balneario Camboriu", 
+        "ativo_na_roleta": true, 
+        "data_ultima_indicacao": "2025-10-02T08:00:00Z" 
+    },
+    { 
+        "id": 6, 
+        "nome": "Morgana Barreto", 
+        "email": "morgana@adimimoveis.com.br",
+        "natureza": "Captacao", 
+        "cidade": "Balneario Camboriu", 
+        "ativo_na_roleta": true, 
+        "data_ultima_indicacao": "2025-10-02T08:00:00Z" 
+    }
+]

@@ -1,0 +1,9 @@
+# .gitignore
+
+# Ignorar pastas e arquivos do Node
+node_modules/
+package-lock.json
+consultores.json
+
+# SECRETS (NUNCA SUBIR)
+.env

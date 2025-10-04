@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulário de Indicação CRI/ADIM (MVP)</title>
+    <style>
+        /* CSS Básico para o Esboço */
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { max-width: 500px; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="text"], input[type="email"], select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; }
+        .resultado { margin-top: 20px; padding: 10px; border: 1px solid green; background-color: #e6ffe6; display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>Formulário de Indicação - Teste da Roleta</h1>
+    <p>Preencha os campos para testar o envio para o servidor Node.js (Backend).</p>
+    <form id="referral-form">
+        
+        <h2>Dados do Corretor (Quem Indica)</h2>
+        <label for="nome_corretor">Seu Nome:</label>
+        <input type="text" id="nome_corretor" required value="Corretor Teste">
+
+        <hr>
+
+        <h2>Dados da Indicação (CRÍTICOS para a Roleta)</h2>
+
+        <label for="natureza">Natureza:</label>
+        <select id="natureza" required>
+            <option value="Locacao">Locação</option>
+            <option value="Captacao">Captação</option>
+        </select>
+
+        <label for="cidade">Cidade:</label>
+        <select id="cidade" required>
+            <option value="Balneario Camboriu">Balneário Camboriú</option>
+            <option value="Itajai">Itajaí</option>
+            <option value="Itapema">Itapema</option>
+        </select>
+        
+        <hr>
+
+        <h2>Dados do Cliente</h2>
+        <label for="nome_cliente">Nome do Cliente:</label>
+        <input type="text" id="nome_cliente" required>
+        
+        <label for="telefone_cliente">Telefone:</label>
+        <input type="text" id="telefone_cliente" required>
+
+        <label for="email_cliente">E-mail (Opcional):</label>
+        <input type="email" id="email_cliente">
+
+        <button type="submit">Enviar Indicação (Acionar Roleta)</button>
+    </form>
+
+    <div id="resultado-envio" class="resultado"></div>
+
+    <script>
+        document.getElementById('referral-form').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            
+            const form = e.target;
+            const resultadoDiv = document.getElementById('resultado-envio');
+            resultadoDiv.style.display = 'block';
+            resultadoDiv.innerHTML = 'Processando Roleta...';
+
+            // Coleta dos dados do formulário
+            const dadosDoFormulario = {
+                natureza: document.getElementById('natureza').value, 
+                cidade: document.getElementById('cidade').value,
+                nome_corretor: document.getElementById('nome_corretor').value, 
+                nome_cliente: document.getElementById('nome_cliente').value,
+                tel_cliente: document.getElementById('telefone_cliente').value,
+                email_cliente: document.getElementById('email_cliente').value,
+            };
+
+            // ⚠️ ATENÇÃO: Endereço do nosso Backend (server.js)
+            const urlBackend = 'https://curly-lamp-wrxj7p96rj6629xj-3000.app.github.dev/api/indicacoes';
+
+            fetch(urlBackend, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(dadosDoFormulario),
+            })
+            .then(response => {
+                // Checa o status HTTP (201 é sucesso, 503 é Roleta vazia)
+                if (!response.ok) {
+                    throw new Error(response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Sucesso na Atribuição (Status 201)
+                resultadoDiv.style.backgroundColor = '#e6ffe6';
+                resultadoDiv.innerHTML = `
+                    <h3>✅ SUCESSO! Indicação Enviada.</h3>
+                    <p><strong>Status:</strong> Atribuída pela Roleta</p>
+                    <p><strong>Consultor:</strong> ${data.consultor_sorteado}</p>
+                    <p><strong>Fila:</strong> ${data.fila_consultada}</p>
+                    <p><strong>Próximo na Roleta:</strong> Foi para o final da fila (Data: ${data.proxima_data_roleta})</p>
+                `;
+                form.reset();
+            })
+            .catch(error => {
+                // Trata falha no servidor ou Roleta vazia
+                resultadoDiv.style.backgroundColor = '#ffe6e6';
+                if (error.message.includes('503')) {
+                    resultadoDiv.innerHTML = `<h3>❌ FALHA NA ROLETA (503)</h3><p>Nenhum consultor ativo para esta Natureza/Cidade. A Gerente foi alertada.</p>`;
+                } else {
+                    resultadoDiv.innerHTML = `<h3>❌ ERRO DE CONEXÃO</h3><p>Verifique se o servidor Node.js está rodando (porta 3000) e se a sua configuração SMTP está correta.</p>`;
+                }
+            });
+        });
+    
+    </script>
+</body>
+</html>
