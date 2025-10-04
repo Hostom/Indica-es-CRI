@@ -31,8 +31,6 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// ❌ FUNÇÃO REMOVIDA: A função getGerente que lia o arquivo foi removida para evitar o erro de bloqueio.
-
 // 3. MIDDLEWARE E ROTEAMENTO (Solução CORS)
 app.use(express.json());
 app.use(cors()); 

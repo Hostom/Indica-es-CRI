@@ -1,16 +1,13 @@
 {
-  "name": "indicacoes-cri-adim",
+  "name": "indica-es-cri",
   "version": "1.0.0",
-  "description": "Sistema de distribuição automática de indicações (Roleta) CRI/ADIM",
+  "description": "Sistema de indicações do GRUPO CRI",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.6.1",
-    "express": "^4.21.2",
-    "nodemailer": "^7.0.6",
-    "pg": "^8.16.3"
+    "express": "^4.17.1",
+    "pg": "^8.7.1"
   }
 }
