@@ -8,23 +8,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 1. CONFIGURAÇÃO DO BANCO DE DADOS (PostgreSQL)
-// O pool de conexões será usado por nossas rotas
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL, 
-    // A configuração SSL é importante para conexões com Vercel, Render, etc.
     ssl: { 
         rejectUnauthorized: false 
     } 
 });
 
 // 2. MIDDLEWARE (Configurações do Express)
-// Permite que o servidor entenda JSON vindo do formulário
 app.use(express.json()); 
-// Habilita o CORS para evitar erros de bloqueio no navegador
 app.use(cors()); 
 
 // 3. ROTA PRINCIPAL (/)
-// Serve o arquivo index.html quando alguém acessa a raiz do site
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -34,7 +29,8 @@ app.post("/api/indicacoes", async (req, res) => {
     
     // Pega os dados enviados pelo formulário
     const dadosIndicacao = req.body;
-    const { natureza, cidade, nome_cliente, nome_corretor } = dadosIndicacao;
+    // Adicionei 'nome_corretor' aqui para facilitar o acesso
+    const { natureza, cidade, nome_cliente, tel_cliente, nome_corretor } = dadosIndicacao;
 
     try {
         // --- ETAPA 1: SORTEAR O CONSULTOR NO BANCO DE DADOS ---
@@ -49,7 +45,6 @@ app.post("/api/indicacoes", async (req, res) => {
         
         const consultorSorteado = consultorResult.rows[0];
 
-        // Se a roleta não encontrar ninguém, envia um erro e para a execução
         if (!consultorSorteado) {
             console.error("ROTA /api/indicacoes: Nenhum consultor encontrado para a fila.", { natureza, cidade });
             return res.status(503).json({ success: false, message: "Falha: Nenhum consultor ativo para esta fila." });
@@ -63,12 +58,26 @@ app.post("/api/indicacoes", async (req, res) => {
         `;
         await pool.query(updateQuery, [consultorSorteado.id]); 
 
+        // --- NOVA ETAPA 2.5: GRAVAR A INDICAÇÃO NA TABELA DE HISTÓRICO ---
+        const insertIndicacaoQuery = `
+            INSERT INTO Indicacoes (consultor_id, natureza, cidade, nome_cliente, tel_cliente, nome_corretor)
+            VALUES ($1, $2, $3, $4, $5, $6);
+        `;
+        await pool.query(insertIndicacaoQuery, [
+            consultorSorteado.id,
+            natureza,
+            cidade,
+            nome_cliente,
+            tel_cliente,
+            nome_corretor // Adicionado para salvar quem indicou
+        ]);
+        console.log(`Indicação para o cliente ${nome_cliente} foi gravada com sucesso na tabela de histórico.`);
+
         // --- ETAPA 3: ENVIAR A NOTIFICAÇÃO POR E-MAIL (VIA RESEND API) ---
         const resendApiKey = process.env.RESEND_API_KEY;
         const emailFrom = process.env.EMAIL_FROM;
         const emailGerenteCC = process.env.EMAIL_GERENTE_CC;
 
-        // Monta o corpo do e-mail em HTML para ficar mais bonito
         const emailCorpoHtml = `
             <p>Nova Indicação Recebida - Prioridade Máxima!</p>
             <p><b>Atribuído a:</b> ${consultorSorteado.nome}</p>
@@ -78,11 +87,10 @@ app.post("/api/indicacoes", async (req, res) => {
                 <li><b>Natureza:</b> ${natureza}</li>
                 <li><b>Cidade:</b> ${cidade}</li>
                 <li><b>Cliente:</b> ${nome_cliente}</li>
-                <li><b>Telefone:</b> ${dadosIndicacao.tel_cliente || 'N/A'}</li>
+                <li><b>Telefone:</b> ${tel_cliente || 'N/A'}</li>
             </ul>
         `;
         
-        // Só tenta enviar o e-mail se a chave da API do Resend existir
         if (resendApiKey && emailFrom) {
             const response = await fetch('https://api.resend.com/emails', {
                 method: 'POST',
@@ -93,14 +101,13 @@ app.post("/api/indicacoes", async (req, res) => {
                 body: JSON.stringify({
                     from: emailFrom,
                     to: consultorSorteado.email,
-                    cc: emailGerenteCC, // Adiciona a gerente em cópia, se a variável existir
+                    cc: emailGerenteCC,
                     subject: `[INDICAÇÃO CRI/ADIM] ${natureza} - Cliente: ${nome_cliente}`,
                     html: emailCorpoHtml
                 })
             });
 
             if (!response.ok) {
-                // Se o Resend retornar um erro, mostra no log do servidor para depuração
                 const errorData = await response.json();
                 console.error("Falha ao enviar e-mail pelo Resend:", errorData);
             } else {
@@ -113,14 +120,13 @@ app.post("/api/indicacoes", async (req, res) => {
         // --- ETAPA 4: ENVIAR A RESPOSTA DE SUCESSO PARA O SITE ---
         return res.status(201).json({ 
             success: true,
-            message: "Indicação atribuída com sucesso!",
+            message: "Indicação atribuída e gravada com sucesso!",
             consultor_sorteado: consultorSorteado.nome,
         });
 
     } catch (error) {
-        // Se qualquer etapa acima falhar (banco de dados, etc.), captura o erro
         console.error("ERRO IRRECUPERÁVEL NA ROTA /API/INDICACOES:", error);
-        return res.status(500).json({ success: false, message: "Erro interno no servidor ao processar a Roleta." });
+        return res.status(500).json({ success: false, message: "Erro interno no servidor." });
     }
 });
 
@@ -128,3 +134,4 @@ app.post("/api/indicacoes", async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor CRI/ADIM rodando na porta ${PORT}`);
 });
+    
