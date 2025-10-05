@@ -14,9 +14,9 @@ CREATE TABLE Consultores (
 
 -- 2. Insere os dados iniciais da Gerente e dos Consultores
 INSERT INTO Consultores (nome, email, natureza, cidade, ativo_na_roleta, data_ultima_indicacao) VALUES
-('Ana - Loc BC', 'ana.consultora@exemplo.com', 'Locacao', 'Balneario Camboriu', TRUE, '2025-10-01T10:00:00Z'),
+('Israel - Loc BC', 'israel@adimimoveis.com.br', 'Locacao', 'Balneario Camboriu', TRUE, '2025-10-01T10:00:00Z'),
 ('Bruno - Loc BC', 'bruno.consultor@exemplo.com', 'Locacao', 'Balneario Camboriu', TRUE, '2025-10-01T11:00:00Z'),
-('Gerente Geral', 'gerente@exemplo.com', 'N/A', 'N/A', TRUE, '2025-01-01T08:00:00Z');
+('Gerente Geral', 'lidiane@adimimoveis.com.br', 'N/A', 'N/A', TRUE, '2025-01-01T08:00:00Z');
 
 -- 3. Cria a tabela de Indicações (Para o Dashboard futuro)
 CREATE TABLE Indicacoes (
