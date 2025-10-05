@@ -1,6 +1,4 @@
-//versão corrigida
 const express = require('express');
-const nodemailer = require("nodemailer");
 const path = require('path');
 const cors = require('cors');
 const { Pool } = require('pg'); // Cliente PostgreSQL
@@ -21,26 +19,46 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false } 
 });
 
-// 2. CONFIGURAÇÃO SMTP (Lê diretamente do .env para segurança)
-const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST, 
-    port: process.env.EMAIL_PORT, 
-    secure: process.env.EMAIL_PORT == 465, 
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
 
-// 3. MIDDLEWARE E ROTEAMENTO (Solução CORS)
-app.use(express.json());
-app.use(cors()); 
+// --- 3. ENVIO DE E-MAIL (Usando a API do Resend via HTTPS) ---
+        const resendApiKey = process.env.RESEND_API_KEY; // Nova variável!
 
-// Rota GET /: Serve o index.html (Corrige o erro "Cannot GET /")
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+        const emailCorpoHtml = `
+            <p>Nova Indicação Recebida - Prioridade Máxima!</p>
+            <p><b>Atribuído a:</b> ${consultorSorteado.nome}</p>
+            <p><b>Detalhes:</b></p>
+            <ul>
+                <li><b>Corretor Indicador:</b> ${nome_corretor || 'Não Informado'}</li>
+                <li><b>Natureza:</b> ${natureza}</li>
+                <li><b>Cidade:</b> ${cidade}</li>
+                <li><b>Cliente:</b> ${nome_cliente}</li>
+                <li><b>Telefone:</b> ${dadosIndicacao.tel_cliente || 'N/A'}</li>
+            </ul>
+        `;
 
+        if (resendApiKey) {
+            const response = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${resendApiKey}`
+                },
+                body: JSON.stringify({
+                    from: process.env.EMAIL_FROM, // Ex: 'onboarding@resend.dev'
+                    to: consultorSorteado.email,
+                    cc: emailGerenteCC,
+                    subject: `[INDICAÇÃO CRI/ADIM] ${natureza} - Cliente: ${nome_cliente}`,
+                    html: emailCorpoHtml
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error("Falha ao enviar e-mail pelo Resend:", errorData);
+            } else {
+                console.log(`E-mail de Atribuição enviado com sucesso para ${consultorSorteado.nome} via Resend.`);
+            }
+        }
 
 // ----------------------------------------------------------------------
 // 4. ROTA POST /api/indicacoes (O Coração do Sistema - TOTALMENTE ASYNC COM DB)
