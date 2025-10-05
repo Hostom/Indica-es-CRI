@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Sistema de indicações do GRUPO CRI",
   "main": "server.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js"
   },
