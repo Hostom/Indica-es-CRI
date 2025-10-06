@@ -20,21 +20,33 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(__dirname)); // Permite servir arquivos estáticos como a Logo.png
 
-// --- MIDDLEWARE DE SEGURANÇA PARA AS ROTAS DO DASHBOARD ---
-const protectRoute = (req, res, next) => {
+// --- NOVO MIDDLEWARE DE SEGURANÇA COM NÍVEIS DE ACESSO ---
+const protectAndIdentify = (req, res, next) => {
     const authHeader = req.header('Authorization');
-    const expectedPassword = process.env.DASHBOARD_PASSWORD;
+    
+    // Senhas lidas do ambiente
+    const passDiretor = process.env.DASHBOARD_PASS_DIRETOR;
+    const passBcItajai = process.env.DASHBOARD_PASS_BC_ITAJAI;
+    const passItapema = process.env.DASHBOARD_PASS_ITAPEMA;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ') || !expectedPassword) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Acesso não autorizado' });
     }
 
     const providedPassword = authHeader.substring(7); // Remove "Bearer "
-    if (providedPassword !== expectedPassword) {
+
+    // Determina o papel do usuário com base na senha fornecida
+    if (passDiretor && providedPassword === passDiretor) {
+        req.userRole = { type: 'DIRETOR', cities: [] }; // Vazio significa todas as cidades
+    } else if (passBcItajai && providedPassword === passBcItajai) {
+        req.userRole = { type: 'GERENTE', cities: ['Balneario Camboriu', 'Itajai'] };
+    } else if (passItapema && providedPassword === passItapema) {
+        req.userRole = { type: 'GERENTE', cities: ['Itapema'] };
+    } else {
         return res.status(401).json({ error: 'Senha incorreta' });
     }
 
-    next(); // Se a senha estiver correta, continua para a rota
+    next(); // Se a senha for válida, continua para a rota
 };
 
 
@@ -45,14 +57,13 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Rota que recebe os dados do formulário de indicação (O CORAÇÃO DO SISTEMA)
+// Rota que recebe os dados do formulário de indicação
 app.post("/api/indicacoes", async (req, res) => {
-    
     const dadosIndicacao = req.body;
     const { natureza, cidade, nome_cliente, tel_cliente, nome_corretor, unidade_corretor, descricao_situacao } = dadosIndicacao;
 
     try {
-        // ETAPA 1: SORTEAR O CONSULTOR NO BANCO DE DADOS
+        // ETAPA 1: SORTEAR O CONSULTOR
         const roletaQuery = `
             SELECT id, email, nome 
             FROM Consultores 
@@ -65,36 +76,20 @@ app.post("/api/indicacoes", async (req, res) => {
         const consultorSorteado = consultorResult.rows[0];
 
         if (!consultorSorteado) {
-            console.error("ROTA /api/indicacoes: Nenhum consultor encontrado para a fila.", { natureza, cidade });
             return res.status(503).json({ success: false, message: "Falha: Nenhum consultor ativo para esta fila." });
         }
 
         // ETAPA 2: ATUALIZAR A DATA DO CONSULTOR SORTEADO
-        const updateQuery = `
-            UPDATE Consultores 
-            SET data_ultima_indicacao = NOW() 
-            WHERE id = $1;
-        `;
-        await pool.query(updateQuery, [consultorSorteado.id]); 
+        await pool.query('UPDATE Consultores SET data_ultima_indicacao = NOW() WHERE id = $1;', [consultorSorteado.id]); 
 
-        // ETAPA 2.5: GRAVAR A INDICAÇÃO NA TABELA DE HISTÓRICO
+        // ETAPA 3: GRAVAR A INDICAÇÃO NO HISTÓRICO
         const insertIndicacaoQuery = `
             INSERT INTO Indicacoes (consultor_id, nome_corretor, unidade_corretor, natureza, cidade, nome_cliente, tel_cliente, descricao_situacao)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
         `;
-        await pool.query(insertIndicacaoQuery, [
-            consultorSorteado.id,
-            nome_corretor,
-            unidade_corretor,
-            natureza,
-            cidade,
-            nome_cliente,
-            tel_cliente,
-            descricao_situacao
-        ]);
-        console.log(`Indicação para o cliente ${nome_cliente} foi gravada com sucesso na tabela de histórico.`);
-
-        // ETAPA 3: ENVIAR A NOTIFICAÇÃO POR E-MAIL (VIA RESEND API)
+        await pool.query(insertIndicacaoQuery, [consultorSorteado.id, nome_corretor, unidade_corretor, natureza, cidade, nome_cliente, tel_cliente, descricao_situacao]);
+        
+        // ETAPA 4: ENVIAR NOTIFICAÇÃO POR E-MAIL
         const resendApiKey = process.env.RESEND_API_KEY;
         const emailFrom = process.env.EMAIL_FROM;
         const emailGerenteCC = process.env.EMAIL_GERENTE_CC;
@@ -103,22 +98,9 @@ app.post("/api/indicacoes", async (req, res) => {
             <p>Nova Indicação Recebida!</p>
             <p><b>Atribuído a:</b> ${consultorSorteado.nome}</p>
             <hr>
-            <p><b>Dados do Corretor:</b></p>
-            <ul>
-                <li><b>Nome:</b> ${nome_corretor || 'Não Informado'}</li>
-                <li><b>Unidade:</b> ${unidade_corretor || 'Não Informada'}</li>
-            </ul>
-            <p><b>Dados da Indicação:</b></p>
-            <ul>
-                <li><b>Natureza:</b> ${natureza}</li>
-                <li><b>Cidade:</b> ${cidade}</li>
-            </ul>
-            <p><b>Dados do Cliente:</b></p>
-            <ul>
-                <li><b>Nome:</b> ${nome_cliente}</li>
-                <li><b>Telefone:</b> ${tel_cliente || 'N/A'}</li>
-                <li><b>Descrição:</b> ${descricao_situacao}</li>
-            </ul>
+            <p><b>Dados do Corretor:</b> ${nome_corretor || 'Não Informado'} (${unidade_corretor || 'N/A'})</p>
+            <p><b>Dados do Cliente:</b> ${nome_cliente} - ${tel_cliente || 'N/A'}</p>
+            <p><b>Descrição:</b> ${descricao_situacao}</p>
         `;
         
         if (resendApiKey && emailFrom) {
@@ -136,18 +118,14 @@ app.post("/api/indicacoes", async (req, res) => {
                     html: emailCorpoHtml
                 })
             });
-
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error("Falha ao enviar e-mail pelo Resend:", errorData);
+                console.error("Falha ao enviar e-mail pelo Resend:", await response.json());
             } else {
                 console.log(`E-mail de Atribuição enviado com sucesso para ${consultorSorteado.nome} via Resend.`);
             }
-        } else {
-            console.warn("Aviso: RESEND_API_KEY ou EMAIL_FROM não configurados. E-mail não enviado.");
         }
 
-        // ETAPA 4: ENVIAR A RESPOSTA DE SUCESSO PARA O SITE
+        // ETAPA 5: RESPOSTA DE SUCESSO
         return res.status(201).json({ 
             success: true,
             message: "Indicação atribuída e gravada com sucesso!",
@@ -168,16 +146,25 @@ app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
-// Rota para fornecer os dados para o dashboard
-app.get('/api/dashboard-data', protectRoute, async (req, res) => {
+// Rota para fornecer os dados para o dashboard (agora com filtro por permissão)
+app.get('/api/dashboard-data', protectAndIdentify, async (req, res) => {
     try {
-        const indicacoesQuery = `
+        let indicacoesQuery = `
             SELECT i.*, c.nome as consultor_nome 
             FROM Indicacoes i
             LEFT JOIN Consultores c ON i.consultor_id = c.id
-            ORDER BY i.data_indicacao DESC;
         `;
-        const indicacoesResult = await pool.query(indicacoesQuery);
+        const queryParams = [];
+
+        // Se o usuário não for Diretor, filtra pelas cidades permitidas
+        if (req.userRole.type === 'GERENTE' && req.userRole.cities.length > 0) {
+            indicacoesQuery += ' WHERE i.cidade = ANY($1)';
+            queryParams.push(req.userRole.cities);
+        }
+
+        indicacoesQuery += ' ORDER BY i.data_indicacao DESC;';
+
+        const indicacoesResult = await pool.query(indicacoesQuery, queryParams);
         const consultoresResult = await pool.query('SELECT * FROM consultores ORDER BY nome ASC');
 
         res.json({
@@ -191,7 +178,7 @@ app.get('/api/dashboard-data', protectRoute, async (req, res) => {
 });
 
 // Rota para atualizar o status de uma indicação
-app.put('/api/indicacoes/:id', protectRoute, async (req, res) => {
+app.put('/api/indicacoes/:id', protectAndIdentify, async (req, res) => {
     try {
         const { id } = req.params;
         const { status_interno } = req.body;
@@ -204,7 +191,7 @@ app.put('/api/indicacoes/:id', protectRoute, async (req, res) => {
 });
 
 // Rota para atualizar o status de um consultor na roleta
-app.put('/api/consultores/:id', protectRoute, async (req, res) => {
+app.put('/api/consultores/:id', protectAndIdentify, async (req, res) => {
     try {
         const { id } = req.params;
         const { ativo_na_roleta } = req.body;
