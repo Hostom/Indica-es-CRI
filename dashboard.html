@@ -113,7 +113,7 @@
             tableBody.innerHTML = '';
             indicacoes.forEach(indicacao => {
                 const row = document.createElement('tr');
-                const statusOptions = ['PENDENTE', 'EM ATENDIMENTO', 'CONCLUIDA', 'CANCELADA'];
+                const statusOptions = ['PENDENTE', 'EM ATENDIMENTO', 'NEGÓCIO FECHADO', 'CANCELADA'];
                 const statusSelect = `<select data-id="${indicacao.id}" class="status-select bg-gray-200 rounded p-1 w-full">${statusOptions.map(s => `<option value="${s}" ${indicacao.status_interno === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
                 
                 const descricaoHtml = `
