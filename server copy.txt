@@ -1,63 +1,35 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
-const { Pool } = require('pg');
-require('dotenv').config();
+const { Pool } = require('pg'); 
+require('dotenv').config(); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 1. CONFIGURAÇÃO DO BANCO DE DADOS (PostgreSQL)
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    connectionString: process.env.DATABASE_URL, 
+    ssl: { 
+        rejectUnauthorized: false 
+    } 
 });
 
 // 2. MIDDLEWARE (Configurações do Express)
-app.use(express.json());
-app.use(cors());
+app.use(express.json()); 
+app.use(cors()); 
 
-// 3. ROTA PRINCIPAL (/) - SERVE O SEU FORMULÁRIO
+// 3. ROTA PRINCIPAL (/)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
-
-// --- NOVA ROTA PARA O POWER BI ---
-app.get('/api/relatorios', async (req, res) => {
-    // Middleware de segurança simples para a rota do Power BI
-    const apiKey = req.header('x-api-key');
-    const expectedApiKey = process.env.POWERBI_API_KEY;
-
-    // Se a chave não for fornecida ou não for correta, bloqueia o acesso
-    if (!apiKey || apiKey !== expectedApiKey) {
-        return res.status(401).json({ error: 'Acesso não autorizado' });
-    }
-
-    try {
-        // Busca os dados das duas tabelas
-        const indicacoesResult = await pool.query('SELECT * FROM indicacoes');
-        const consultoresResult = await pool.query('SELECT * FROM consultores');
-
-        // Retorna os dados em um único objeto JSON
-        res.json({
-            indicacoes: indicacoesResult.rows,
-            consultores: consultoresResult.rows
-        });
-    } catch (error) {
-        console.error("Erro ao buscar dados para o Power BI:", error);
-        res.status(500).json({ error: 'Erro interno ao buscar dados do relatório.' });
-    }
-});
-// -----------------------------------
-
 
 // 4. ROTA DA API (/api/indicacoes) - O CORAÇÃO DO SISTEMA
 app.post("/api/indicacoes", async (req, res) => {
     
     // Pega os dados enviados pelo formulário
     const dadosIndicacao = req.body;
+    // Adicionei 'nome_corretor' aqui para facilitar o acesso
     const { natureza, cidade, nome_cliente, tel_cliente, nome_corretor } = dadosIndicacao;
 
     try {
@@ -86,7 +58,7 @@ app.post("/api/indicacoes", async (req, res) => {
         `;
         await pool.query(updateQuery, [consultorSorteado.id]); 
 
-        // --- ETAPA 2.5: GRAVAR A INDICAÇÃO NA TABELA DE HISTÓRICO ---
+        // --- NOVA ETAPA 2.5: GRAVAR A INDICAÇÃO NA TABELA DE HISTÓRICO ---
         const insertIndicacaoQuery = `
             INSERT INTO Indicacoes (consultor_id, natureza, cidade, nome_cliente, tel_cliente, nome_corretor)
             VALUES ($1, $2, $3, $4, $5, $6);
@@ -97,7 +69,7 @@ app.post("/api/indicacoes", async (req, res) => {
             cidade,
             nome_cliente,
             tel_cliente,
-            nome_corretor
+            nome_corretor // Adicionado para salvar quem indicou
         ]);
         console.log(`Indicação para o cliente ${nome_cliente} foi gravada com sucesso na tabela de histórico.`);
 
@@ -162,3 +134,4 @@ app.post("/api/indicacoes", async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor CRI/ADIM rodando na porta ${PORT}`);
 });
+    
