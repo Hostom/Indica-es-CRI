@@ -18,6 +18,7 @@ const pool = new Pool({
 // --- MIDDLEWARE ---
 app.use(express.json());
 app.use(cors());
+app.use(express.static(__dirname)); // Permite servir arquivos estáticos como a Logo.png
 
 // --- MIDDLEWARE DE SEGURANÇA PARA AS ROTAS DO DASHBOARD ---
 const protectRoute = (req, res, next) => {
@@ -51,7 +52,7 @@ app.post("/api/indicacoes", async (req, res) => {
     const { natureza, cidade, nome_cliente, tel_cliente, nome_corretor, unidade_corretor, descricao_situacao } = dadosIndicacao;
 
     try {
-        // --- ETAPA 1: SORTEAR O CONSULTOR NO BANCO DE DADOS ---
+        // ETAPA 1: SORTEAR O CONSULTOR NO BANCO DE DADOS
         const roletaQuery = `
             SELECT id, email, nome 
             FROM Consultores 
@@ -68,7 +69,7 @@ app.post("/api/indicacoes", async (req, res) => {
             return res.status(503).json({ success: false, message: "Falha: Nenhum consultor ativo para esta fila." });
         }
 
-        // --- ETAPA 2: ATUALIZAR A DATA DO CONSULTOR SORTEADO ---
+        // ETAPA 2: ATUALIZAR A DATA DO CONSULTOR SORTEADO
         const updateQuery = `
             UPDATE Consultores 
             SET data_ultima_indicacao = NOW() 
@@ -76,7 +77,7 @@ app.post("/api/indicacoes", async (req, res) => {
         `;
         await pool.query(updateQuery, [consultorSorteado.id]); 
 
-        // --- ETAPA 2.5: GRAVAR A INDICAÇÃO NA TABELA DE HISTÓRICO ---
+        // ETAPA 2.5: GRAVAR A INDICAÇÃO NA TABELA DE HISTÓRICO
         const insertIndicacaoQuery = `
             INSERT INTO Indicacoes (consultor_id, nome_corretor, unidade_corretor, natureza, cidade, nome_cliente, tel_cliente, descricao_situacao)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
@@ -93,7 +94,7 @@ app.post("/api/indicacoes", async (req, res) => {
         ]);
         console.log(`Indicação para o cliente ${nome_cliente} foi gravada com sucesso na tabela de histórico.`);
 
-        // --- ETAPA 3: ENVIAR A NOTIFICAÇÃO POR E-MAIL (VIA RESEND API) ---
+        // ETAPA 3: ENVIAR A NOTIFICAÇÃO POR E-MAIL (VIA RESEND API)
         const resendApiKey = process.env.RESEND_API_KEY;
         const emailFrom = process.env.EMAIL_FROM;
         const emailGerenteCC = process.env.EMAIL_GERENTE_CC;
@@ -146,7 +147,7 @@ app.post("/api/indicacoes", async (req, res) => {
             console.warn("Aviso: RESEND_API_KEY ou EMAIL_FROM não configurados. E-mail não enviado.");
         }
 
-        // --- ETAPA 4: ENVIAR A RESPOSTA DE SUCESSO PARA O SITE ---
+        // ETAPA 4: ENVIAR A RESPOSTA DE SUCESSO PARA O SITE
         return res.status(201).json({ 
             success: true,
             message: "Indicação atribuída e gravada com sucesso!",

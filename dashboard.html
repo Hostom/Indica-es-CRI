@@ -3,11 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Indicações</title>
+    <title>Dashboard de Indicações - ADIM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .modal-bg { background-color: rgba(0,0,0,0.5); }
+        .tooltip { 
+            position: relative; 
+            display: inline-block;
+            cursor: pointer;
+            border-bottom: 1px dotted black;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 300px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.875rem;
+        }
+        .tooltip:hover .tooltiptext { 
+            visibility: visible; 
+            opacity: 1; 
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -15,45 +42,48 @@
     <!-- Modal de Senha -->
     <div id="password-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm">
+            <img src="/Logo.png" alt="Logo ADIM" class="mx-auto h-12 mb-6">
             <h2 class="text-2xl font-bold mb-4 text-center">Acesso Restrito</h2>
-            <p class="text-center mb-6">Por favor, insira a senha do dashboard para continuar.</p>
+            <p class="text-center mb-6">Insira a senha do dashboard para continuar.</p>
             <input type="password" id="password-input" class="w-full p-3 border border-gray-300 rounded-lg mb-4" placeholder="Senha">
-            <button id="password-submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors">Entrar</button>
+            <button id="password-submit" class="w-full bg-[#004AAD] text-white p-3 rounded-lg hover:bg-blue-800 transition-colors">Entrar</button>
             <p id="password-error" class="text-red-500 text-sm mt-2 text-center hidden">Senha incorreta.</p>
         </div>
     </div>
 
-    <!-- Conteúdo Principal do Dashboard (escondido inicialmente) -->
+    <!-- Conteúdo do Dashboard -->
     <div id="dashboard-content" class="hidden container mx-auto p-4 md:p-8">
-        <header class="flex justify-between items-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Dashboard de Indicações</h1>
-            <button id="refresh-button" class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition-colors">Atualizar Dados</button>
+        <header class="flex flex-col md:flex-row justify-between md:items-center mb-8 gap-4">
+            <div class="flex items-center gap-4">
+                <img src="/Logo.png" alt="Logo ADIM" class="h-10">
+                <h1 class="text-4xl font-bold text-gray-900 text-center md:text-left">Dashboard de Indicações</h1>
+            </div>
+            <button id="refresh-button" class="bg-[#004AAD] text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors self-center md:self-auto">Atualizar Dados</button>
         </header>
 
-        <!-- Seção de Indicações -->
+        <!-- Seção de Gerenciar Indicações -->
         <section class="mb-12">
-            <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Gerenciar Indicações</h2>
+            <h2 class="text-2xl font-semibold mb-4 border-b pb-2 text-gray-800">Gerenciar Indicações</h2>
             <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente / Telefone</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Corretor (Unidade)</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Consultor Atribuído</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                     </thead>
-                    <tbody id="indicacoes-table-body" class="bg-white divide-y divide-gray-200">
-                        <!-- Linhas serão inseridas via JavaScript -->
-                    </tbody>
+                    <tbody id="indicacoes-table-body" class="bg-white divide-y divide-gray-200"></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- Seção de Consultores -->
+        <!-- Seção de Gerenciar Consultores -->
         <section>
-            <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Gerenciar Consultores</h2>
+            <h2 class="text-2xl font-semibold mb-4 border-b pb-2 text-gray-800">Gerenciar Consultores</h2>
             <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -63,158 +93,137 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ativo na Roleta?</th>
                         </tr>
                     </thead>
-                    <tbody id="consultores-table-body" class="bg-white divide-y divide-gray-200">
-                        <!-- Linhas serão inseridas via JavaScript -->
-                    </tbody>
+                    <tbody id="consultores-table-body" class="bg-white divide-y divide-gray-200"></tbody>
                 </table>
             </div>
         </section>
-
     </div>
 
     <script>
+        // Lógica de autenticação e carregamento de dados
         const passwordModal = document.getElementById('password-modal');
         const passwordInput = document.getElementById('password-input');
         const passwordSubmit = document.getElementById('password-submit');
         const passwordError = document.getElementById('password-error');
         const dashboardContent = document.getElementById('dashboard-content');
         const refreshButton = document.getElementById('refresh-button');
-        
         let apiPassword = '';
 
-        // Lida com a submissão da senha
         passwordSubmit.addEventListener('click', () => {
             const enteredPassword = passwordInput.value;
             if (enteredPassword) {
                 apiPassword = enteredPassword;
-                passwordModal.classList.add('hidden');
-                dashboardContent.classList.remove('hidden');
                 loadData();
             }
         });
         
         refreshButton.addEventListener('click', loadData);
 
-        // Função para carregar os dados do servidor
         async function loadData() {
             if (!apiPassword) return;
-
             try {
                 const response = await fetch('/api/dashboard-data', {
                     headers: { 'Authorization': `Bearer ${apiPassword}` }
                 });
-
                 if (response.status === 401) {
                     passwordModal.classList.remove('hidden');
                     dashboardContent.classList.add('hidden');
                     passwordError.classList.remove('hidden');
-                    apiPassword = ''; // Reseta a senha
+                    apiPassword = '';
                     return;
                 }
-                
                 if (!response.ok) throw new Error('Falha ao carregar dados.');
-
-                const data = await response.json();
-                passwordError.classList.add('hidden');
                 
+                const data = await response.json();
+                passwordModal.classList.add('hidden');
+                dashboardContent.classList.remove('hidden');
+                passwordError.classList.add('hidden');
                 populateIndicacoesTable(data.indicacoes);
                 populateConsultoresTable(data.consultores);
-
             } catch (error) {
-                console.error('Erro:', error);
                 alert('Não foi possível carregar os dados do dashboard.');
             }
         }
 
-        // Função para popular a tabela de indicações
+        // Funções para popular as tabelas
         function populateIndicacoesTable(indicacoes) {
             const tableBody = document.getElementById('indicacoes-table-body');
             tableBody.innerHTML = '';
             indicacoes.forEach(indicacao => {
                 const row = document.createElement('tr');
                 const statusOptions = ['PENDENTE', 'EM ATENDIMENTO', 'CONCLUIDA', 'CANCELADA'];
-                const statusSelect = `
-                    <select data-id="${indicacao.id}" class="status-select bg-gray-200 rounded p-1">
-                        ${statusOptions.map(status => `
-                            <option value="${status}" ${indicacao.status_interno === status ? 'selected' : ''}>${status}</option>
-                        `).join('')}
-                    </select>
-                `;
+                const statusSelect = `<select data-id="${indicacao.id}" class="status-select bg-gray-200 rounded p-1 w-full">${statusOptions.map(s => `<option value="${s}" ${indicacao.status_interno === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
                 
+                const descricaoHtml = `
+                    <div class="tooltip">
+                        (ver descrição)
+                        <span class="tooltiptext">${indicacao.descricao_situacao || 'Nenhuma descrição fornecida.'}</span>
+                    </div>`;
+
                 row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">${indicacao.nome_cliente}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${indicacao.tel_cliente}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${indicacao.consultor_nome || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${new Date(indicacao.data_indicacao).toLocaleString('pt-BR')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${statusSelect}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900">${indicacao.nome_cliente}</div>
+                        <div class="text-sm text-gray-500">${indicacao.tel_cliente}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900">${indicacao.nome_corretor || 'N/A'}</div>
+                        <div class="text-sm text-gray-500">${indicacao.unidade_corretor || 'N/A'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${descricaoHtml}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${indicacao.consultor_nome || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(indicacao.data_indicacao).toLocaleString('pt-BR')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${statusSelect}</td>
                 `;
                 tableBody.appendChild(row);
             });
             
-            // Adiciona event listeners para os dropdowns de status
             document.querySelectorAll('.status-select').forEach(select => {
                 select.addEventListener('change', (e) => updateIndicacaoStatus(e.target.dataset.id, e.target.value));
             });
         }
 
-        // Função para popular a tabela de consultores
         function populateConsultoresTable(consultores) {
             const tableBody = document.getElementById('consultores-table-body');
             tableBody.innerHTML = '';
             consultores.forEach(consultor => {
                 const row = document.createElement('tr');
-                const toggleCheckbox = `
-                    <input type="checkbox" data-id="${consultor.id}" class="consultor-toggle h-4 w-4 rounded" ${consultor.ativo_na_roleta ? 'checked' : ''}>
-                `;
-                
+                const toggleCheckbox = `<input type="checkbox" data-id="${consultor.id}" class="consultor-toggle h-4 w-4 rounded text-blue-800 border-gray-300 focus:ring-blue-700" ${consultor.ativo_na_roleta ? 'checked' : ''}>`;
                 row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">${consultor.nome}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${consultor.natureza} / ${consultor.cidade}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${toggleCheckbox}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${consultor.nome}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${consultor.natureza} / ${consultor.cidade}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${toggleCheckbox}</td>
                 `;
                 tableBody.appendChild(row);
             });
             
-            // Adiciona event listeners para os toggles de status
             document.querySelectorAll('.consultor-toggle').forEach(toggle => {
                 toggle.addEventListener('change', (e) => updateConsultorStatus(e.target.dataset.id, e.target.checked));
             });
         }
         
-        // Função para atualizar o status de uma indicação
+        // Funções para atualizar os dados no backend
         async function updateIndicacaoStatus(id, newStatus) {
              try {
-                await fetch(`/api/indicacoes/${id}`, {
+                const response = await fetch(`/api/indicacoes/${id}`, {
                     method: 'PUT',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiPassword}` 
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiPassword}` },
                     body: JSON.stringify({ status_interno: newStatus })
                 });
-            } catch (error) {
-                console.error('Erro ao atualizar indicação:', error);
-                alert('Falha ao atualizar status da indicação.');
-            }
+                if (!response.ok) throw new Error('Falha na atualização.');
+            } catch (error) { alert('Falha ao atualizar status da indicação.'); }
         }
 
-        // Função para atualizar o status de um consultor
         async function updateConsultorStatus(id, newStatus) {
             try {
-                await fetch(`/api/consultores/${id}`, {
+                const response = await fetch(`/api/consultores/${id}`, {
                     method: 'PUT',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiPassword}` 
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiPassword}` },
                     body: JSON.stringify({ ativo_na_roleta: newStatus })
                 });
-            } catch (error) {
-                console.error('Erro ao atualizar consultor:', error);
-                alert('Falha ao atualizar status do consultor.');
-            }
+                if (!response.ok) throw new Error('Falha na atualização.');
+            } catch (error) { alert('Falha ao atualizar status do consultor.'); }
         }
-
     </script>
 </body>
 </html>
+
