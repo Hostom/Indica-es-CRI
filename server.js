@@ -48,7 +48,7 @@ app.get('/', (req, res) => {
 app.post("/api/indicacoes", async (req, res) => {
     
     const dadosIndicacao = req.body;
-    const { natureza, cidade, nome_cliente, tel_cliente, nome_corretor } = dadosIndicacao;
+    const { natureza, cidade, nome_cliente, tel_cliente, nome_corretor, unidade_corretor, descricao_situacao } = dadosIndicacao;
 
     try {
         // --- ETAPA 1: SORTEAR O CONSULTOR NO BANCO DE DADOS ---
@@ -78,16 +78,18 @@ app.post("/api/indicacoes", async (req, res) => {
 
         // --- ETAPA 2.5: GRAVAR A INDICAÇÃO NA TABELA DE HISTÓRICO ---
         const insertIndicacaoQuery = `
-            INSERT INTO Indicacoes (consultor_id, natureza, cidade, nome_cliente, tel_cliente, nome_corretor)
-            VALUES ($1, $2, $3, $4, $5, $6);
+            INSERT INTO Indicacoes (consultor_id, nome_corretor, unidade_corretor, natureza, cidade, nome_cliente, tel_cliente, descricao_situacao)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
         `;
         await pool.query(insertIndicacaoQuery, [
             consultorSorteado.id,
+            nome_corretor,
+            unidade_corretor,
             natureza,
             cidade,
             nome_cliente,
             tel_cliente,
-            nome_corretor
+            descricao_situacao
         ]);
         console.log(`Indicação para o cliente ${nome_cliente} foi gravada com sucesso na tabela de histórico.`);
 
@@ -97,15 +99,24 @@ app.post("/api/indicacoes", async (req, res) => {
         const emailGerenteCC = process.env.EMAIL_GERENTE_CC;
 
         const emailCorpoHtml = `
-            <p>Nova Indicação Recebida - Prioridade Máxima!</p>
+            <p>Nova Indicação Recebida!</p>
             <p><b>Atribuído a:</b> ${consultorSorteado.nome}</p>
-            <p><b>Detalhes:</b></p>
+            <hr>
+            <p><b>Dados do Corretor:</b></p>
             <ul>
-                <li><b>Corretor Indicador:</b> ${nome_corretor || 'Não Informado'}</li>
+                <li><b>Nome:</b> ${nome_corretor || 'Não Informado'}</li>
+                <li><b>Unidade:</b> ${unidade_corretor || 'Não Informada'}</li>
+            </ul>
+            <p><b>Dados da Indicação:</b></p>
+            <ul>
                 <li><b>Natureza:</b> ${natureza}</li>
                 <li><b>Cidade:</b> ${cidade}</li>
-                <li><b>Cliente:</b> ${nome_cliente}</li>
+            </ul>
+            <p><b>Dados do Cliente:</b></p>
+            <ul>
+                <li><b>Nome:</b> ${nome_cliente}</li>
                 <li><b>Telefone:</b> ${tel_cliente || 'N/A'}</li>
+                <li><b>Descrição:</b> ${descricao_situacao}</li>
             </ul>
         `;
         
@@ -120,7 +131,7 @@ app.post("/api/indicacoes", async (req, res) => {
                     from: emailFrom,
                     to: consultorSorteado.email,
                     cc: emailGerenteCC,
-                    subject: `[INDICAÇÃO CRI/ADIM] ${natureza} - Cliente: ${nome_cliente}`,
+                    subject: `[INDICAÇÃO] ${natureza} - Cliente: ${nome_cliente}`,
                     html: emailCorpoHtml
                 })
             });

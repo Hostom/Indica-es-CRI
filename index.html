@@ -3,60 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulário de Indicação CRI/ADIM (MVP)</title>
+    <title>Formulário de Indicação CRI/ADIM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* CSS Básico para o Esboço */
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        form { max-width: 500px; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
-        label { display: block; margin-top: 10px; font-weight: bold; }
-        input[type="text"], input[type="email"], select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
-        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; }
-        .resultado { margin-top: 20px; padding: 10px; border: 1px solid green; background-color: #e6ffe6; display: none; }
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
 
-    <h1>Formulário de Indicação - Teste da Roleta</h1>
-    <p>Preencha os campos para testar o envio para o servidor Node.js (Backend).</p>
-    <form id="referral-form">
+    <main class="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">Formulário de Indicação</h1>
+        <p class="text-center text-gray-500 mb-8">Preencha os campos para acionar a roleta de consultores.</p>
         
-        <h2>Dados do Corretor (Quem Indica)</h2>
-        <label for="nome_corretor">Seu Nome:</label>
-        <input type="text" id="nome_corretor" required value="Corretor Teste">
+        <form id="referral-form">
+            
+            <fieldset class="mb-6 border-t pt-4">
+                <legend class="text-xl font-semibold text-gray-700 mb-4">Dados do Corretor</legend>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="nome_corretor" class="block text-sm font-medium text-gray-600 mb-1">Seu Nome:</label>
+                        <input type="text" id="nome_corretor" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="unidade_corretor" class="block text-sm font-medium text-gray-600 mb-1">Sua Unidade:</label>
+                        <select id="unidade_corretor" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Selecione a unidade...</option>
+                            <option value="CRI Brava">CRI Brava</option>
+                            <option value="BC">BC</option>
+                            <option value="Itapema">Itapema</option>
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
 
-        <hr>
+            <fieldset class="mb-6 border-t pt-4">
+                <legend class="text-xl font-semibold text-gray-700 mb-4">Dados da Indicação (para Roleta)</legend>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="natureza" class="block text-sm font-medium text-gray-600 mb-1">Natureza:</label>
+                        <select id="natureza" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="Locacao">Locação</option>
+                            <option value="Captacao">Captação</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="cidade" class="block text-sm font-medium text-gray-600 mb-1">Cidade:</label>
+                        <select id="cidade" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="Balneario Camboriu">Balneário Camboriú</option>
+                            <option value="Itajai">Itajaí</option>
+                            <option value="Itapema">Itapema</option>
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+            
+            <fieldset class="border-t pt-4">
+                <legend class="text-xl font-semibold text-gray-700 mb-4">Dados do Cliente</legend>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="nome_cliente" class="block text-sm font-medium text-gray-600 mb-1">Nome do Cliente:</label>
+                        <input type="text" id="nome_cliente" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="telefone_cliente" class="block text-sm font-medium text-gray-600 mb-1">Telefone:</label>
+                        <input type="text" id="telefone_cliente" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label for="descricao_situacao" class="block text-sm font-medium text-gray-600 mb-1">Descrição da Situação:</label>
+                    <textarea id="descricao_situacao" rows="4" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: proprietário deseja deixar imóvel... locatário busca aluguel de 12mil..."></textarea>
+                </div>
+            </fieldset>
 
-        <h2>Dados da Indicação (CRÍTICOS para a Roleta)</h2>
+            <button type="submit" class="w-full mt-8 bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg">Enviar Indicação</button>
+        </form>
 
-        <label for="natureza">Natureza:</label>
-        <select id="natureza" required>
-            <option value="Locacao">Locação</option>
-            <option value="Captacao">Captação</option>
-        </select>
-
-        <label for="cidade">Cidade:</label>
-        <select id="cidade" required>
-            <option value="Balneario Camboriu">Balneário Camboriú</option>
-            <option value="Itajai">Itajaí</option>
-            <option value="Itapema">Itapema</option>
-        </select>
-        
-        <hr>
-
-        <h2>Dados do Cliente</h2>
-        <label for="nome_cliente">Nome do Cliente:</label>
-        <input type="text" id="nome_cliente" required>
-        
-        <label for="telefone_cliente">Telefone:</label>
-        <input type="text" id="telefone_cliente" required>
-
-        <label for="email_cliente">E-mail (Opcional):</label>
-        <input type="email" id="email_cliente">
-
-        <button type="submit">Enviar Indicação (Acionar Roleta)</button>
-    </form>
-
-    <div id="resultado-envio" class="resultado"></div>
+        <div id="resultado-envio" class="mt-6 p-4 rounded-md text-center hidden"></div>
+    </main>
 
     <script>
         document.getElementById('referral-form').addEventListener('submit', function(e) {
@@ -64,59 +87,44 @@
             
             const form = e.target;
             const resultadoDiv = document.getElementById('resultado-envio');
-            resultadoDiv.style.display = 'block';
+            resultadoDiv.classList.remove('hidden');
+            resultadoDiv.className = 'mt-6 p-4 rounded-md text-center bg-yellow-100 text-yellow-800';
             resultadoDiv.innerHTML = 'Processando Roleta...';
 
-            // Coleta dos dados do formulário
             const dadosDoFormulario = {
                 natureza: document.getElementById('natureza').value, 
                 cidade: document.getElementById('cidade').value,
                 nome_corretor: document.getElementById('nome_corretor').value, 
+                unidade_corretor: document.getElementById('unidade_corretor').value,
                 nome_cliente: document.getElementById('nome_cliente').value,
                 tel_cliente: document.getElementById('telefone_cliente').value,
-                email_cliente: document.getElementById('email_cliente').value,
+                descricao_situacao: document.getElementById('descricao_situacao').value,
             };
 
-            // ⚠️ ATENÇÃO: Endereço do nosso Backend (server.js)
-             const urlBackend = '/api/indicacoes'; // <-- MUDANÇA AQUI!
-
-            fetch(urlBackend, {
+            fetch('/api/indicacoes', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dadosDoFormulario),
             })
             .then(response => {
-                // Checa o status HTTP (201 é sucesso, 503 é Roleta vazia)
                 if (!response.ok) {
-                    throw new Error(response.status);
+                    return response.json().then(err => { throw err; });
                 }
                 return response.json();
             })
             .then(data => {
-                // Sucesso na Atribuição (Status 201)
-                resultadoDiv.style.backgroundColor = '#e6ffe6';
+                resultadoDiv.className = 'mt-6 p-4 rounded-md text-center bg-green-100 text-green-800';
                 resultadoDiv.innerHTML = `
-                    <h3>✅ SUCESSO! Indicação Enviada.</h3>
-                    <p><strong>Status:</strong> Atribuída pela Roleta</p>
-                    <p><strong>Consultor:</strong> ${data.consultor_sorteado}</p>
-                    <p><strong>Fila:</strong> ${data.fila_consultada}</p>
-                    <p><strong>Próximo na Roleta:</strong> Foi para o final da fila (Data: ${data.proxima_data_roleta})</p>
+                    <h3 class="font-bold text-lg">✅ SUCESSO!</h3>
+                    <p>Indicação atribuída para: <strong>${data.consultor_sorteado}</strong></p>
                 `;
                 form.reset();
             })
             .catch(error => {
-                // Trata falha no servidor ou Roleta vazia
-                resultadoDiv.style.backgroundColor = '#ffe6e6';
-                if (error.message.includes('503')) {
-                    resultadoDiv.innerHTML = `<h3>❌ FALHA NA ROLETA (503)</h3><p>Nenhum consultor ativo para esta Natureza/Cidade. A Gerente foi alertada.</p>`;
-                } else {
-                    resultadoDiv.innerHTML = `<h3>❌ ERRO DE CONEXÃO</h3><p>Verifique se o servidor Node.js está rodando (porta 3000) e se a sua configuração SMTP está correta.</p>`;
-                }
+                resultadoDiv.className = 'mt-6 p-4 rounded-md text-center bg-red-100 text-red-800';
+                resultadoDiv.innerHTML = `<h3 class="font-bold">❌ ERRO</h3><p>${error.message || 'Falha na conexão com o servidor.'}</p>`;
             });
         });
-    
     </script>
 </body>
 </html>
