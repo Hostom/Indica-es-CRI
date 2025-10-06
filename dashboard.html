@@ -8,33 +8,6 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .modal-bg { background-color: rgba(0,0,0,0.5); }
-        .tooltip { 
-            position: relative; 
-            display: inline-block;
-            cursor: pointer;
-            border-bottom: 1px dotted black;
-        }
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 300px;
-            background-color: #333;
-            color: #fff;
-            text-align: left;
-            border-radius: 6px;
-            padding: 10px;
-            position: absolute;
-            z-index: 10;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -150px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 0.875rem;
-        }
-        .tooltip:hover .tooltiptext { 
-            visibility: visible; 
-            opacity: 1; 
-        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -48,6 +21,15 @@
             <input type="password" id="password-input" class="w-full p-3 border border-gray-300 rounded-lg mb-4" placeholder="Senha">
             <button id="password-submit" class="w-full bg-[#004AAD] text-white p-3 rounded-lg hover:bg-blue-800 transition-colors">Entrar</button>
             <p id="password-error" class="text-red-500 text-sm mt-2 text-center hidden">Senha incorreta.</p>
+        </div>
+    </div>
+
+    <!-- Modal para Descrição -->
+    <div id="description-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-bg">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">Descrição da Situação</h3>
+            <p id="modal-description-text" class="mb-6 text-gray-700 whitespace-pre-wrap"></p>
+            <button id="close-modal-button" class="w-full bg-gray-500 text-white p-3 rounded-lg hover:bg-gray-600 transition-colors">Fechar</button>
         </div>
     </div>
 
@@ -100,13 +82,15 @@
     </div>
 
     <script>
-        // Lógica de autenticação e carregamento de dados
         const passwordModal = document.getElementById('password-modal');
         const passwordInput = document.getElementById('password-input');
         const passwordSubmit = document.getElementById('password-submit');
         const passwordError = document.getElementById('password-error');
         const dashboardContent = document.getElementById('dashboard-content');
         const refreshButton = document.getElementById('refresh-button');
+        const descriptionModal = document.getElementById('description-modal');
+        const modalDescriptionText = document.getElementById('modal-description-text');
+        const closeModalButton = document.getElementById('close-modal-button');
         let apiPassword = '';
 
         passwordSubmit.addEventListener('click', () => {
@@ -118,7 +102,58 @@
         });
         
         refreshButton.addEventListener('click', loadData);
+        closeModalButton.addEventListener('click', () => descriptionModal.classList.add('hidden'));
 
+        async function loadData() {
+            // ... (código de autenticação e carregamento de dados permanece o mesmo) ...
+        }
+
+        function populateIndicacoesTable(indicacoes) {
+            const tableBody = document.getElementById('indicacoes-table-body');
+            tableBody.innerHTML = '';
+            indicacoes.forEach(indicacao => {
+                const row = document.createElement('tr');
+                const statusOptions = ['PENDENTE', 'EM ATENDIMENTO', 'CONCLUIDA', 'CANCELADA'];
+                const statusSelect = `<select data-id="${indicacao.id}" class="status-select bg-gray-200 rounded p-1 w-full">${statusOptions.map(s => `<option value="${s}" ${indicacao.status_interno === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
+                
+                const descricaoHtml = `
+                    <button class="view-description-button text-blue-600 hover:underline" data-description="${indicacao.descricao_situacao || 'Nenhuma descrição fornecida.'}">
+                        (ver descrição)
+                    </button>`;
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900">${indicacao.nome_cliente}</div>
+                        <div class="text-sm text-gray-500">${indicacao.tel_cliente}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900">${indicacao.nome_corretor || 'N/A'}</div>
+                        <div class="text-sm text-gray-500">${indicacao.unidade_corretor || 'N/A'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${descricaoHtml}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${indicacao.consultor_nome || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(indicacao.data_indicacao).toLocaleString('pt-BR')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${statusSelect}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // Adiciona evento de clique para os botões de descrição
+            document.querySelectorAll('.view-description-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    modalDescriptionText.textContent = e.target.dataset.description;
+                    descriptionModal.classList.remove('hidden');
+                });
+            });
+
+            // Adiciona evento de mudança para os seletores de status
+            document.querySelectorAll('.status-select').forEach(select => {
+                select.addEventListener('change', (e) => updateIndicacaoStatus(e.target.dataset.id, e.target.value));
+            });
+        }
+        
+        // --- As outras funções (loadData, populateConsultoresTable, updates) permanecem as mesmas ---
+        
         async function loadData() {
             if (!apiPassword) return;
             try {
@@ -144,44 +179,7 @@
                 alert('Não foi possível carregar os dados do dashboard.');
             }
         }
-
-        // Funções para popular as tabelas
-        function populateIndicacoesTable(indicacoes) {
-            const tableBody = document.getElementById('indicacoes-table-body');
-            tableBody.innerHTML = '';
-            indicacoes.forEach(indicacao => {
-                const row = document.createElement('tr');
-                const statusOptions = ['PENDENTE', 'EM ATENDIMENTO', 'CONCLUIDA', 'CANCELADA'];
-                const statusSelect = `<select data-id="${indicacao.id}" class="status-select bg-gray-200 rounded p-1 w-full">${statusOptions.map(s => `<option value="${s}" ${indicacao.status_interno === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
-                
-                const descricaoHtml = `
-                    <div class="tooltip">
-                        (ver descrição)
-                        <span class="tooltiptext">${indicacao.descricao_situacao || 'Nenhuma descrição fornecida.'}</span>
-                    </div>`;
-
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="font-medium text-gray-900">${indicacao.nome_cliente}</div>
-                        <div class="text-sm text-gray-500">${indicacao.tel_cliente}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="font-medium text-gray-900">${indicacao.nome_corretor || 'N/A'}</div>
-                        <div class="text-sm text-gray-500">${indicacao.unidade_corretor || 'N/A'}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${descricaoHtml}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${indicacao.consultor_nome || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(indicacao.data_indicacao).toLocaleString('pt-BR')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${statusSelect}</td>
-                `;
-                tableBody.appendChild(row);
-            });
-            
-            document.querySelectorAll('.status-select').forEach(select => {
-                select.addEventListener('change', (e) => updateIndicacaoStatus(e.target.dataset.id, e.target.value));
-            });
-        }
-
+        
         function populateConsultoresTable(consultores) {
             const tableBody = document.getElementById('consultores-table-body');
             tableBody.innerHTML = '';
@@ -201,7 +199,6 @@
             });
         }
         
-        // Funções para atualizar os dados no backend
         async function updateIndicacaoStatus(id, newStatus) {
              try {
                 const response = await fetch(`/api/indicacoes/${id}`, {
@@ -223,6 +220,7 @@
                 if (!response.ok) throw new Error('Falha na atualização.');
             } catch (error) { alert('Falha ao atualizar status do consultor.'); }
         }
+
     </script>
 </body>
 </html>
