@@ -7,7 +7,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- CONFIGURAÇÃO DO BANCO DE DADOS ---
+// 1. CONFIGURAÇÃO DO BANCO DE DADOS (PostgreSQL)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
@@ -15,38 +15,48 @@ const pool = new Pool({
     }
 });
 
-// --- MIDDLEWARE ---
+// 2. MIDDLEWARE (Configurações do Express)
 app.use(express.json());
 app.use(cors());
 
-// --- MIDDLEWARE DE SEGURANÇA PARA AS ROTAS DO DASHBOARD ---
-const protectRoute = (req, res, next) => {
-    const authHeader = req.header('Authorization');
-    const expectedPassword = process.env.DASHBOARD_PASSWORD;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ') || !expectedPassword) {
-        return res.status(401).json({ error: 'Acesso não autorizado' });
-    }
-
-    const providedPassword = authHeader.substring(7); // Remove "Bearer "
-    if (providedPassword !== expectedPassword) {
-        return res.status(401).json({ error: 'Senha incorreta' });
-    }
-
-    next(); // Se a senha estiver correta, continua para a rota
-};
-
-
-// --- ROTAS PÚBLICAS ---
-
-// Rota para o formulário de indicação
+// 3. ROTA PRINCIPAL (/) - SERVE O SEU FORMULÁRIO
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Rota que recebe os dados do formulário de indicação (O CORAÇÃO DO SISTEMA)
+// --- NOVA ROTA PARA O POWER BI ---
+app.get('/api/relatorios', async (req, res) => {
+    // Middleware de segurança simples para a rota do Power BI
+    const apiKey = req.header('x-api-key');
+    const expectedApiKey = process.env.POWERBI_API_KEY;
+
+    // Se a chave não for fornecida ou não for correta, bloqueia o acesso
+    if (!apiKey || apiKey !== expectedApiKey) {
+        return res.status(401).json({ error: 'Acesso não autorizado' });
+    }
+
+    try {
+        // Busca os dados das duas tabelas
+        const indicacoesResult = await pool.query('SELECT * FROM indicacoes');
+        const consultoresResult = await pool.query('SELECT * FROM consultores');
+
+        // Retorna os dados em um único objeto JSON
+        res.json({
+            indicacoes: indicacoesResult.rows,
+            consultores: consultoresResult.rows
+        });
+    } catch (error) {
+        console.error("Erro ao buscar dados para o Power BI:", error);
+        res.status(500).json({ error: 'Erro interno ao buscar dados do relatório.' });
+    }
+});
+// -----------------------------------
+
+
+// 4. ROTA DA API (/api/indicacoes) - O CORAÇÃO DO SISTEMA
 app.post("/api/indicacoes", async (req, res) => {
     
+    // Pega os dados enviados pelo formulário
     const dadosIndicacao = req.body;
     const { natureza, cidade, nome_cliente, tel_cliente, nome_corretor } = dadosIndicacao;
 
@@ -148,65 +158,7 @@ app.post("/api/indicacoes", async (req, res) => {
     }
 });
 
-
-// --- ROTAS PROTEGIDAS DO DASHBOARD ---
-
-// Rota para servir a página do dashboard
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dashboard.html'));
-});
-
-// Rota para fornecer os dados para o dashboard
-app.get('/api/dashboard-data', protectRoute, async (req, res) => {
-    try {
-        const indicacoesQuery = `
-            SELECT i.*, c.nome as consultor_nome 
-            FROM Indicacoes i
-            LEFT JOIN Consultores c ON i.consultor_id = c.id
-            ORDER BY i.data_indicacao DESC;
-        `;
-        const indicacoesResult = await pool.query(indicacoesQuery);
-        const consultoresResult = await pool.query('SELECT * FROM consultores ORDER BY nome ASC');
-
-        res.json({
-            indicacoes: indicacoesResult.rows,
-            consultores: consultoresResult.rows
-        });
-    } catch (error) {
-        console.error("Erro ao buscar dados para o dashboard:", error);
-        res.status(500).json({ error: 'Erro interno ao buscar dados.' });
-    }
-});
-
-// Rota para atualizar o status de uma indicação
-app.put('/api/indicacoes/:id', protectRoute, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status_interno } = req.body;
-        await pool.query('UPDATE Indicacoes SET status_interno = $1 WHERE id = $2', [status_interno, id]);
-        res.status(200).json({ success: true, message: 'Status da indicação atualizado.' });
-    } catch (error) {
-        console.error("Erro ao atualizar indicação:", error);
-        res.status(500).json({ error: 'Erro interno ao atualizar indicação.' });
-    }
-});
-
-// Rota para atualizar o status de um consultor na roleta
-app.put('/api/consultores/:id', protectRoute, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { ativo_na_roleta } = req.body;
-        await pool.query('UPDATE Consultores SET ativo_na_roleta = $1 WHERE id = $2', [ativo_na_roleta, id]);
-        res.status(200).json({ success: true, message: 'Status do consultor atualizado.' });
-    } catch (error) {
-        console.error("Erro ao atualizar consultor:", error);
-        res.status(500).json({ error: 'Erro interno ao atualizar consultor.' });
-    }
-});
-
-
-// --- INICIAR O SERVIDOR ---
+// 5. INICIAR O SERVIDOR
 app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`Servidor CRI/ADIM rodando na porta ${PORT}`);
 });
-
