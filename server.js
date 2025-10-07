@@ -52,7 +52,6 @@ app.post("/api/indicacoes", async (req, res) => {
     const { natureza, cidade, nome_cliente, tel_cliente, nome_corretor, unidade_corretor, descricao_situacao } = dadosIndicacao;
 
     try {
-        // ETAPAS 1, 2 e 3: Lógica do Banco de Dados (sem alteração)
         const roletaQuery = `SELECT id, email, nome FROM Consultores WHERE natureza = $1 AND cidade = $2 AND ativo_na_roleta = TRUE ORDER BY data_ultima_indicacao ASC LIMIT 1;`;
         const consultorResult = await pool.query(roletaQuery, [natureza, cidade]);
         const consultorSorteado = consultorResult.rows[0];
@@ -66,13 +65,12 @@ app.post("/api/indicacoes", async (req, res) => {
         const insertIndicacaoQuery = `INSERT INTO Indicacoes (consultor_id, nome_corretor, unidade_corretor, natureza, cidade, nome_cliente, tel_cliente, descricao_situacao) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`;
         await pool.query(insertIndicacaoQuery, [consultorSorteado.id, nome_corretor, unidade_corretor, natureza, cidade, nome_cliente, tel_cliente, descricao_situacao]);
 
-        // --- ETAPA 4: NOVA LÓGICA DE ENVIO DE E-MAIL (MAILGUN API) ---
-        const mailgunApiKey = process.env.MAILGUN_API_KEY;
-        const mailgunDomain = process.env.MAILGUN_DOMAIN;
-        const emailFrom = process.env.EMAIL_FROM; // Ex: noreply@seu-sandbox.mailgun.org
+        // --- ETAPA 4: NOVA LÓGICA DE ENVIO DE E-MAIL (VIA SERVIDOR RELAY INTERNO) ---
+        const relayUrl = process.env.RELAY_SERVER_URL;
+        const relaySecret = process.env.RELAY_SECRET;
         const emailGerenteCC = process.env.EMAIL_GERENTE_CC;
 
-        if (mailgunApiKey && mailgunDomain && emailFrom) {
+        if (relayUrl && relaySecret) {
             const emailCorpoHtml = `
                 <p>Nova Indicação Recebida!</p>
                 <p><b>Atribuído a:</b> ${consultorSorteado.nome}</p>
@@ -82,29 +80,27 @@ app.post("/api/indicacoes", async (req, res) => {
                 <p><b>Descrição:</b> ${descricao_situacao}</p>
             `;
 
-            const mailgunUrl = `https://api.mailgun.net/v3/${mailgunDomain}/messages`;
-            
-            const form = new URLSearchParams();
-            form.append('from', emailFrom);
-            form.append('to', consultorSorteado.email);
-            if (emailGerenteCC) form.append('cc', emailGerenteCC);
-            form.append('subject', `[INDICAÇÃO] ${natureza} - Cliente: ${nome_cliente}`);
-            form.append('html', emailCorpoHtml);
+            // Dados que serão enviados para o seu servidor relay
+            const emailPayload = {
+                to: consultorSorteado.email,
+                cc: emailGerenteCC,
+                subject: `[INDICAÇÃO] ${natureza} - Cliente: ${nome_cliente}`,
+                html: emailCorpoHtml
+            };
 
-            const response = await fetch(mailgunUrl, {
+            const response = await fetch(relayUrl, {
                 method: 'POST',
                 headers: {
-                    // Autenticação para a API do Mailgun
-                    'Authorization': 'Basic ' + Buffer.from(`api:${mailgunApiKey}`).toString('base64'),
+                    'Content-Type': 'application/json',
+                    'x-relay-secret': relaySecret // Senha de segurança
                 },
-                body: form
+                body: JSON.stringify(emailPayload)
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error("Falha ao enviar e-mail pelo Mailgun:", errorData);
+                console.error("Falha ao enviar e-mail pelo servidor relay:", await response.text());
             } else {
-                console.log(`E-mail enviado com sucesso para ${consultorSorteado.nome} via Mailgun.`);
+                console.log(`Pedido de e-mail enviado com sucesso para o servidor relay.`);
             }
         }
         
