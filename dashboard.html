@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard de Indicações - ADIM</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Biblioteca SheetJS para exportação Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .modal-bg { background-color: rgba(0,0,0,0.5); }
@@ -138,9 +140,10 @@
                         </select>
                     </div>
                 </div>
-                <div class="flex gap-4 mt-6">
+                <div class="flex flex-wrap gap-4 mt-6">
                     <button id="gerar-relatorio" class="bg-[#004AAD] text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition-colors">Gerar Relatório</button>
                     <button id="exportar-csv" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors" disabled>Exportar CSV</button>
+                    <button id="exportar-excel" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors" disabled>Exportar Excel</button>
                     <button id="limpar-filtros" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors">Limpar Filtros</button>
                 </div>
             </div>
@@ -205,6 +208,7 @@
         // Elementos dos relatórios
         const gerarRelatorioBtn = document.getElementById('gerar-relatorio');
         const exportarCsvBtn = document.getElementById('exportar-csv');
+        const exportarExcelBtn = document.getElementById('exportar-excel');
         const limparFiltrosBtn = document.getElementById('limpar-filtros');
         const relatorioLoading = document.getElementById('relatorio-loading');
         const relatorioVazio = document.getElementById('relatorio-vazio');
@@ -237,6 +241,7 @@
         // Relatórios
         gerarRelatorioBtn.addEventListener('click', gerarRelatorio);
         exportarCsvBtn.addEventListener('click', exportarCSV);
+        exportarExcelBtn.addEventListener('click', exportarExcel);
         limparFiltrosBtn.addEventListener('click', limparFiltros);
 
         function showTab(tabName) {
@@ -343,11 +348,13 @@
                     relatorioVazio.innerHTML = '<p class="text-center py-8 text-gray-500">Nenhum registro encontrado com os filtros aplicados.</p>';
                     relatorioVazio.classList.remove('hidden');
                     exportarCsvBtn.disabled = true;
+                    exportarExcelBtn.disabled = true;
                 } else {
                     populateRelatorioTable(dadosRelatorio);
                     totalRegistros.textContent = `Total: ${dadosRelatorio.length} registros`;
                     relatorioResultado.classList.remove('hidden');
                     exportarCsvBtn.disabled = false;
+                    exportarExcelBtn.disabled = false;
                 }
 
             } catch (error) {
@@ -408,6 +415,66 @@
             document.body.removeChild(link);
         }
 
+        function exportarExcel() {
+            if (dadosRelatorio.length === 0) return;
+
+            // Preparar os dados para o Excel
+            const headers = ['Data', 'Consultor', 'Corretor', 'Unidade', 'Cliente', 'Telefone', 'Cidade', 'Natureza', 'Status', 'Descrição'];
+            const excelData = [
+                headers,
+                ...dadosRelatorio.map(item => [
+                    new Date(item.data_indicacao).toLocaleDateString('pt-BR'),
+                    item.consultor_nome || '',
+                    item.nome_corretor || '',
+                    item.unidade_corretor || '',
+                    item.nome_cliente || '',
+                    item.tel_cliente || '',
+                    item.cidade || '',
+                    item.natureza || '',
+                    item.status_interno || '',
+                    item.descricao_situacao || ''
+                ])
+            ];
+
+            // Criar workbook e worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+            // Configurar largura das colunas
+            const colWidths = [
+                { wch: 12 }, // Data
+                { wch: 20 }, // Consultor
+                { wch: 20 }, // Corretor
+                { wch: 15 }, // Unidade
+                { wch: 25 }, // Cliente
+                { wch: 15 }, // Telefone
+                { wch: 20 }, // Cidade
+                { wch: 12 }, // Natureza
+                { wch: 18 }, // Status
+                { wch: 40 }  // Descrição
+            ];
+            ws['!cols'] = colWidths;
+
+            // Estilizar o cabeçalho
+            const headerRange = XLSX.utils.decode_range(ws['!ref']);
+            for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+                const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+                if (!ws[cellAddress]) continue;
+                ws[cellAddress].s = {
+                    font: { bold: true },
+                    fill: { fgColor: { rgb: "004AAD" } },
+                    font: { color: { rgb: "FFFFFF" }, bold: true }
+                };
+            }
+
+            // Adicionar worksheet ao workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Relatório de Indicações');
+
+            // Gerar e baixar o arquivo
+            const fileName = `relatorio_indicacoes_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
         function limparFiltros() {
             document.getElementById('filtro-data-inicio').value = '';
             document.getElementById('filtro-data-fim').value = '';
@@ -421,6 +488,7 @@
             relatorioVazio.innerHTML = '<p class="text-center py-8 text-gray-500">Configure os filtros e clique em "Gerar Relatório" para visualizar os dados.</p>';
             relatorioVazio.classList.remove('hidden');
             exportarCsvBtn.disabled = true;
+            exportarExcelBtn.disabled = true;
             dadosRelatorio = [];
         }
 
