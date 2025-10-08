@@ -136,6 +136,107 @@ app.get('/api/dashboard-data', protectAndIdentify, async (req, res) => {
     }
 });
 
+// --- NOVA ROTA DE RELATÓRIOS ---
+app.get('/api/relatorio', protectAndIdentify, async (req, res) => {
+    try {
+        const { dataInicio, dataFim, consultores, cidades, natureza, status } = req.query;
+        
+        let query = `
+            SELECT 
+                i.id,
+                i.data_indicacao,
+                c.nome as consultor_nome,
+                i.nome_corretor,
+                i.unidade_corretor,
+                i.nome_cliente,
+                i.tel_cliente,
+                i.cidade,
+                i.natureza,
+                i.status_interno,
+                i.descricao_situacao
+            FROM Indicacoes i 
+            LEFT JOIN Consultores c ON i.consultor_id = c.id
+            WHERE 1=1
+        `;
+        
+        const queryParams = [];
+        let paramIndex = 1;
+
+        // Filtro por data de início
+        if (dataInicio) {
+            query += ` AND i.data_indicacao >= $${paramIndex}`;
+            queryParams.push(dataInicio + ' 00:00:00');
+            paramIndex++;
+        }
+
+        // Filtro por data de fim
+        if (dataFim) {
+            query += ` AND i.data_indicacao <= $${paramIndex}`;
+            queryParams.push(dataFim + ' 23:59:59');
+            paramIndex++;
+        }
+
+        // Filtro por consultores (IDs separados por vírgula)
+        if (consultores) {
+            const consultorIds = consultores.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            if (consultorIds.length > 0) {
+                query += ` AND i.consultor_id = ANY($${paramIndex})`;
+                queryParams.push(consultorIds);
+                paramIndex++;
+            }
+        }
+
+        // Filtro por cidades (nomes separados por vírgula)
+        if (cidades) {
+            const cidadesList = cidades.split(',').map(cidade => cidade.trim()).filter(cidade => cidade.length > 0);
+            if (cidadesList.length > 0) {
+                query += ` AND i.cidade = ANY($${paramIndex})`;
+                queryParams.push(cidadesList);
+                paramIndex++;
+            }
+        }
+
+        // Filtro por natureza
+        if (natureza) {
+            query += ` AND i.natureza = $${paramIndex}`;
+            queryParams.push(natureza);
+            paramIndex++;
+        }
+
+        // Filtro por status
+        if (status) {
+            query += ` AND i.status_interno = $${paramIndex}`;
+            queryParams.push(status);
+            paramIndex++;
+        }
+
+        // Aplicar filtro de permissão para gerentes
+        if (req.userRole.type === 'GERENTE') {
+            query += ` AND i.cidade = ANY($${paramIndex})`;
+            queryParams.push(req.userRole.cities);
+            paramIndex++;
+        }
+
+        query += ' ORDER BY i.data_indicacao DESC';
+
+        const result = await pool.query(query, queryParams);
+        
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rows.length
+        });
+
+    } catch (error) {
+        console.error("Erro ao gerar relatório:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro interno ao gerar relatório.',
+            message: error.message 
+        });
+    }
+});
+
 app.put('/api/indicacoes/:id', protectAndIdentify, async (req, res) => {
     try {
         const { id } = req.params;
@@ -163,4 +264,3 @@ app.put('/api/consultores/:id', protectAndIdentify, async (req, res) => {
 
 // --- INICIAR O SERVIDOR ---
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
-
