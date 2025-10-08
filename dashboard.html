@@ -37,6 +37,41 @@
         </div>
     </div>
 
+    <!-- Modal para Adicionar Consultor -->
+    <div id="adicionar-consultor-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-bg">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">Adicionar Novo Consultor</h3>
+            <form id="form-adicionar-consultor">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
+                    <input type="text" id="consultor-nome" class="w-full p-3 border border-gray-300 rounded-lg" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
+                    <input type="email" id="consultor-email" class="w-full p-3 border border-gray-300 rounded-lg" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Natureza</label>
+                    <select id="consultor-natureza" class="w-full p-3 border border-gray-300 rounded-lg" required>
+                        <option value="">Selecione a natureza</option>
+                        <option value="Locacao">Locação</option>
+                        <option value="Venda">Venda</option>
+                    </select>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                    <select id="consultor-cidade" class="w-full p-3 border border-gray-300 rounded-lg" required>
+                        <option value="">Selecione a cidade</option>
+                    </select>
+                </div>
+                <div class="flex gap-4">
+                    <button type="submit" class="flex-1 bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors">Adicionar</button>
+                    <button type="button" id="cancelar-adicionar-consultor" class="flex-1 bg-gray-500 text-white p-3 rounded-lg hover:bg-gray-600 transition-colors">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Conteúdo do Dashboard -->
     <div id="dashboard-content" class="hidden container mx-auto p-4 md:p-8">
         <header class="flex flex-col md:flex-row justify-between md:items-center mb-8 gap-4">
@@ -78,14 +113,21 @@
 
         <!-- Seção de Gerenciar Consultores -->
         <section id="section-consultores" class="mb-12 hidden">
-            <h2 class="text-2xl font-semibold mb-4 border-b pb-2 text-gray-800">Gerenciar Consultores</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold border-b pb-2 text-gray-800">Gerenciar Consultores</h2>
+                <button id="adicionar-consultor-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors hidden">
+                    + Adicionar Consultor
+                </button>
+            </div>
             <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-mail</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fila (Natureza / Cidade)</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ativo na Roleta?</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" id="acoes-header">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="consultores-table-body" class="bg-white divide-y divide-gray-200"></tbody>
@@ -197,6 +239,12 @@
         const modalDescriptionText = document.getElementById('modal-description-text');
         const closeModalButton = document.getElementById('close-modal-button');
         
+        // Elementos do modal de adicionar consultor
+        const adicionarConsultorBtn = document.getElementById('adicionar-consultor-btn');
+        const adicionarConsultorModal = document.getElementById('adicionar-consultor-modal');
+        const formAdicionarConsultor = document.getElementById('form-adicionar-consultor');
+        const cancelarAdicionarConsultor = document.getElementById('cancelar-adicionar-consultor');
+        
         // Elementos das abas
         const tabIndicacoes = document.getElementById('tab-indicacoes');
         const tabConsultores = document.getElementById('tab-consultores');
@@ -220,6 +268,7 @@
         let dadosRelatorio = [];
         let consultoresData = [];
         let indicacoesData = [];
+        let userRole = null;
 
         // Event listeners
         passwordSubmit.addEventListener('click', () => {
@@ -232,6 +281,17 @@
         
         refreshButton.addEventListener('click', loadData);
         closeModalButton.addEventListener('click', () => descriptionModal.classList.add('hidden'));
+
+        // Modal de adicionar consultor
+        adicionarConsultorBtn.addEventListener('click', () => {
+            populateCidadeOptions();
+            adicionarConsultorModal.classList.remove('hidden');
+        });
+        cancelarAdicionarConsultor.addEventListener('click', () => {
+            adicionarConsultorModal.classList.add('hidden');
+            formAdicionarConsultor.reset();
+        });
+        formAdicionarConsultor.addEventListener('submit', adicionarConsultor);
 
         // Navegação por abas
         tabIndicacoes.addEventListener('click', () => showTab('indicacoes'));
@@ -510,10 +570,17 @@
                 const data = await response.json();
                 consultoresData = data.consultores;
                 indicacoesData = data.indicacoes;
+                userRole = data.userRole;
                 
                 passwordModal.classList.add('hidden');
                 dashboardContent.classList.remove('hidden');
                 passwordError.classList.add('hidden');
+                
+                // Mostrar botão de adicionar consultor para gerentes e diretores
+                if (userRole && (userRole.type === 'GERENTE' || userRole.type === 'DIRETOR')) {
+                    adicionarConsultorBtn.classList.remove('hidden');
+                }
+                
                 populateIndicacoesTable(data.indicacoes);
                 populateConsultoresTable(data.consultores);
             } catch (error) {
@@ -567,20 +634,51 @@
         
         function populateConsultoresTable(consultores) {
             const tableBody = document.getElementById('consultores-table-body');
+            const acoesHeader = document.getElementById('acoes-header');
+            
+            // Mostrar/esconder coluna de ações baseado no tipo de usuário
+            if (userRole && (userRole.type === 'GERENTE' || userRole.type === 'DIRETOR')) {
+                acoesHeader.classList.remove('hidden');
+            } else {
+                acoesHeader.classList.add('hidden');
+            }
+            
             tableBody.innerHTML = '';
             consultores.forEach(consultor => {
                 const row = document.createElement('tr');
                 const toggleCheckbox = `<input type="checkbox" data-id="${consultor.id}" class="consultor-toggle h-4 w-4 rounded text-blue-800 border-gray-300 focus:ring-blue-700" ${consultor.ativo_na_roleta ? 'checked' : ''}>`;
+                
+                let acoesHtml = '';
+                if (userRole && (userRole.type === 'GERENTE' || userRole.type === 'DIRETOR')) {
+                    acoesHtml = `<td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <button class="remover-consultor-btn bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors" data-id="${consultor.id}" data-nome="${consultor.nome}">
+                            Remover
+                        </button>
+                    </td>`;
+                }
+                
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${consultor.nome}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${consultor.email}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${consultor.natureza} / ${consultor.cidade}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${toggleCheckbox}</td>
+                    ${acoesHtml}
                 `;
                 tableBody.appendChild(row);
             });
             
             document.querySelectorAll('.consultor-toggle').forEach(toggle => {
                 toggle.addEventListener('change', (e) => updateConsultorStatus(e.target.dataset.id, e.target.checked));
+            });
+            
+            document.querySelectorAll('.remover-consultor-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    const nome = e.target.dataset.nome;
+                    if (confirm(`Tem certeza que deseja remover o consultor "${nome}"?`)) {
+                        removerConsultor(id);
+                    }
+                });
             });
         }
         
@@ -604,6 +702,85 @@
                 });
                 if (!response.ok) throw new Error('Falha na atualização.');
             } catch (error) { alert('Falha ao atualizar status do consultor.'); }
+        }
+
+        function populateCidadeOptions() {
+            const consultorCidade = document.getElementById('consultor-cidade');
+            consultorCidade.innerHTML = '<option value="">Selecione a cidade</option>';
+            
+            // Se for gerente, mostrar apenas suas cidades
+            if (userRole && userRole.type === 'GERENTE') {
+                userRole.cities.forEach(cidade => {
+                    const option = document.createElement('option');
+                    option.value = cidade;
+                    option.textContent = cidade;
+                    consultorCidade.appendChild(option);
+                });
+            } else {
+                // Se for diretor, mostrar todas as cidades disponíveis
+                const cidadesUnicas = [...new Set(consultoresData.map(c => c.cidade))];
+                cidadesUnicas.forEach(cidade => {
+                    const option = document.createElement('option');
+                    option.value = cidade;
+                    option.textContent = cidade;
+                    consultorCidade.appendChild(option);
+                });
+            }
+        }
+
+        async function adicionarConsultor(e) {
+            e.preventDefault();
+            
+            const nome = document.getElementById('consultor-nome').value;
+            const email = document.getElementById('consultor-email').value;
+            const natureza = document.getElementById('consultor-natureza').value;
+            const cidade = document.getElementById('consultor-cidade').value;
+            
+            try {
+                const response = await fetch('/api/consultores', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${apiPassword}` 
+                    },
+                    body: JSON.stringify({ nome, email, natureza, cidade })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(result.message);
+                    adicionarConsultorModal.classList.add('hidden');
+                    formAdicionarConsultor.reset();
+                    loadData(); // Recarregar dados
+                } else {
+                    alert(result.error || 'Erro ao adicionar consultor.');
+                }
+            } catch (error) {
+                alert('Erro ao adicionar consultor. Tente novamente.');
+                console.error('Erro:', error);
+            }
+        }
+
+        async function removerConsultor(id) {
+            try {
+                const response = await fetch(`/api/consultores/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${apiPassword}` }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(result.message);
+                    loadData(); // Recarregar dados
+                } else {
+                    alert(result.error || 'Erro ao remover consultor.');
+                }
+            } catch (error) {
+                alert('Erro ao remover consultor. Tente novamente.');
+                console.error('Erro:', error);
+            }
         }
 
     </script>

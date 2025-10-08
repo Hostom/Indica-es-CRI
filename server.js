@@ -68,12 +68,22 @@ app.post("/api/indicacoes", async (req, res) => {
         // --- ETAPA 4: NOVA LÓGICA DE ENVIO DE E-MAIL (VIA SERVIDOR RELAY INTERNO) ---
         const relayUrl = process.env.RELAY_SERVER_URL;
         const relaySecret = process.env.RELAY_SECRET;
-        const emailGerenteCC = process.env.EMAIL_GERENTE_CC;
+        
+        // Determinar e-mail do gerente baseado na cidade
+        let emailGerenteCC = process.env.EMAIL_GERENTE_CC; // E-mail geral (diretor)
+        
+        if (cidade === 'Itapema') {
+            emailGerenteCC = process.env.EMAIL_GERENTE_ITAPEMA || emailGerenteCC;
+        } else if (cidade === 'Balneario Camboriu' || cidade === 'Itajai') {
+            emailGerenteCC = process.env.EMAIL_GERENTE_BC_ITAJAI || emailGerenteCC;
+        }
 
         if (relayUrl && relaySecret) {
             const emailCorpoHtml = `
                 <p>Nova Indicação Recebida!</p>
                 <p><b>Atribuído a:</b> ${consultorSorteado.nome}</p>
+                <p><b>Cidade:</b> ${cidade}</p>
+                <p><b>Natureza:</b> ${natureza}</p>
                 <hr>
                 <p><b>Dados do Corretor:</b> ${nome_corretor || 'N/A'} (${unidade_corretor || 'N/A'})</p>
                 <p><b>Dados do Cliente:</b> ${nome_cliente} - ${tel_cliente || 'N/A'}</p>
@@ -84,7 +94,7 @@ app.post("/api/indicacoes", async (req, res) => {
             const emailPayload = {
                 to: consultorSorteado.email,
                 cc: emailGerenteCC,
-                subject: `[INDICAÇÃO] ${natureza} - Cliente: ${nome_cliente}`,
+                subject: `[INDICAÇÃO] ${natureza} - ${cidade} - Cliente: ${nome_cliente}`,
                 html: emailCorpoHtml
             };
 
@@ -128,8 +138,23 @@ app.get('/api/dashboard-data', protectAndIdentify, async (req, res) => {
         indicacoesQuery += ' ORDER BY i.data_indicacao DESC;';
 
         const indicacoesResult = await pool.query(indicacoesQuery, queryParams);
-        const consultoresResult = await pool.query('SELECT * FROM consultores ORDER BY nome ASC');
-        res.json({ indicacoes: indicacoesResult.rows, consultores: consultoresResult.rows });
+        
+        // Filtrar consultores por cidade para gerentes
+        let consultoresQuery = 'SELECT * FROM consultores';
+        let consultoresParams = [];
+        
+        if (req.userRole.type === 'GERENTE') {
+            consultoresQuery += ' WHERE cidade = ANY($1)';
+            consultoresParams.push(req.userRole.cities);
+        }
+        consultoresQuery += ' ORDER BY nome ASC';
+        
+        const consultoresResult = await pool.query(consultoresQuery, consultoresParams);
+        res.json({ 
+            indicacoes: indicacoesResult.rows, 
+            consultores: consultoresResult.rows,
+            userRole: req.userRole // Enviar informações do usuário para o frontend
+        });
     } catch (error) {
         console.error("Erro ao buscar dados para o dashboard:", error);
         res.status(500).json({ error: 'Erro interno ao buscar dados.' });
@@ -258,6 +283,85 @@ app.put('/api/consultores/:id', protectAndIdentify, async (req, res) => {
     } catch (error) {
         console.error("Erro ao atualizar consultor:", error);
         res.status(500).json({ error: 'Erro interno ao atualizar consultor.' });
+    }
+});
+
+// Rota para adicionar novo consultor
+app.post('/api/consultores', protectAndIdentify, async (req, res) => {
+    try {
+        const { nome, email, natureza, cidade } = req.body;
+        
+        // Verificar se o usuário tem permissão para adicionar consultor nesta cidade
+        if (req.userRole.type === 'GERENTE' && !req.userRole.cities.includes(cidade)) {
+            return res.status(403).json({ error: 'Sem permissão para adicionar consultor nesta cidade.' });
+        }
+        
+        // Verificar se já existe consultor com este e-mail
+        const existingConsultor = await pool.query('SELECT id FROM Consultores WHERE email = $1', [email]);
+        if (existingConsultor.rows.length > 0) {
+            return res.status(400).json({ error: 'Já existe um consultor com este e-mail.' });
+        }
+        
+        const insertQuery = `
+            INSERT INTO Consultores (nome, email, natureza, cidade, ativo_na_roleta, data_ultima_indicacao) 
+            VALUES ($1, $2, $3, $4, true, '2000-01-01T00:00:00Z') 
+            RETURNING *
+        `;
+        const result = await pool.query(insertQuery, [nome, email, natureza, cidade]);
+        
+        res.status(201).json({ 
+            success: true, 
+            message: 'Consultor adicionado com sucesso!',
+            consultor: result.rows[0]
+        });
+    } catch (error) {
+        console.error("Erro ao adicionar consultor:", error);
+        res.status(500).json({ error: 'Erro interno ao adicionar consultor.' });
+    }
+});
+
+// Rota para remover consultor
+app.delete('/api/consultores/:id', protectAndIdentify, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Buscar o consultor para verificar permissões
+        const consultorResult = await pool.query('SELECT cidade FROM Consultores WHERE id = $1', [id]);
+        if (consultorResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Consultor não encontrado.' });
+        }
+        
+        const consultorCidade = consultorResult.rows[0].cidade;
+        
+        // Verificar se o usuário tem permissão para remover consultor desta cidade
+        if (req.userRole.type === 'GERENTE' && !req.userRole.cities.includes(consultorCidade)) {
+            return res.status(403).json({ error: 'Sem permissão para remover consultor desta cidade.' });
+        }
+        
+        // Verificar se o consultor tem indicações associadas
+        const indicacoesResult = await pool.query('SELECT COUNT(*) as count FROM Indicacoes WHERE consultor_id = $1', [id]);
+        const temIndicacoes = parseInt(indicacoesResult.rows[0].count) > 0;
+        
+        if (temIndicacoes) {
+            // Se tem indicações, apenas desativar
+            await pool.query('UPDATE Consultores SET ativo_na_roleta = false WHERE id = $1', [id]);
+            res.json({ 
+                success: true, 
+                message: 'Consultor desativado (possui indicações associadas).',
+                action: 'deactivated'
+            });
+        } else {
+            // Se não tem indicações, pode remover completamente
+            await pool.query('DELETE FROM Consultores WHERE id = $1', [id]);
+            res.json({ 
+                success: true, 
+                message: 'Consultor removido com sucesso.',
+                action: 'deleted'
+            });
+        }
+    } catch (error) {
+        console.error("Erro ao remover consultor:", error);
+        res.status(500).json({ error: 'Erro interno ao remover consultor.' });
     }
 });
 
